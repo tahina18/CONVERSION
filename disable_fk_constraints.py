@@ -1,0 +1,43 @@
+import oracledb
+
+ORACLE_CONFIG = {
+    'user': 'C##TEST',
+    'password': 'admin',
+    'dsn': 'localhost:1521/PROJET'
+}
+
+def run_sql(cursor, sql):
+    """Exécute une requête SQL avec gestion d'erreur"""
+    try:
+        cursor.execute(sql)
+        print(f"OK: {sql}")
+    except Exception as e:
+        print(f"Erreur lors de l'exécution de {sql} : {e}")
+
+def disable_fk_constraints():
+    """Récupère et désactive toutes les contraintes FK"""
+    conn = oracledb.connect(**ORACLE_CONFIG)
+    cursor = conn.cursor()
+    
+    # Récupérer toutes les contraintes de type Foreign Key (R = Referential)
+    cursor.execute("""
+        SELECT constraint_name, table_name
+        FROM user_constraints
+        WHERE constraint_type = 'R'
+        ORDER BY table_name
+    """)
+    
+    fk_constraints = cursor.fetchall()
+    print(f"Désactivation de {len(fk_constraints)} contraintes FK")
+    
+    # Désactiver chaque contrainte
+    for constraint_name, table_name in fk_constraints:
+        run_sql(cursor, f'ALTER TABLE "{table_name}" DISABLE CONSTRAINT "{constraint_name}"')
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    print("Toutes les contraintes FK ont été désactivées.")
+
+if __name__ == "__main__":
+    disable_fk_constraints()
